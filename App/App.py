@@ -132,7 +132,7 @@ def insertf_data(feed_name, feed_email, feed_score, comments, Timestamp):
 ###### Page Config ######
 
 st.set_page_config(
-    page_title="NSP Resume Analyzer",
+    page_title="Resume Analyser",
     page_icon='./Logo/recommend.png',
 )
 
@@ -148,12 +148,12 @@ def run():
         img = Image.open('./Logo/RESUM.png')
         st.image(img)
     except Exception:
-        st.title("🤖 NSP Resume Analyzer")
+        st.title("🤖 Resume Analyser")
 
     st.sidebar.markdown("# Choose Something...")
     activities = ["User", "Feedback", "About", "Admin"]
     choice = st.sidebar.selectbox("Choose among the given options:", activities)
-    link = '<b>NSP Resume Analyzer</b>'
+    link = '<b>Resume Analyser</b>'
     st.sidebar.markdown(link, unsafe_allow_html=True)
 
     ###### USER SIDE ######
@@ -449,7 +449,7 @@ def run():
 
     ###### ABOUT ######
     elif choice == 'About':
-        st.subheader("**About The Tool - NSP RESUME ANALYZER**")
+        st.subheader("**About The Tool - RESUME ANALYSER**")
         st.markdown('''
         <p align='justify'>
             A tool which parses information from a resume using natural language processing and finds the keywords,

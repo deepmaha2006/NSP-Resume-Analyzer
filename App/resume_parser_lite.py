@@ -45,7 +45,9 @@ SKILLS_DB = [
 
 # ─── Regex patterns ───────────────────────────────────────────────────────────
 
-EMAIL_RE    = re.compile(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}')
+# TLD limited to 2-6 chars + negative lookahead so regex stops at .com
+# and does NOT consume concatenated words like LINKSGithub
+EMAIL_RE    = re.compile(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,6}(?![a-zA-Z])')
 PHONE_RE    = re.compile(r'(?:\+91[\-\s]?)?(?:\d{5}[\-\s]?\d{5}|\d{10}|\(\d{3}\)\s?\d{3}[\-\s]?\d{4}|\d{3}[\-\s]?\d{3}[\-\s]?\d{4})')
 DEGREE_RE   = re.compile(
     r'\b(B\.?Tech|M\.?Tech|B\.?E|M\.?E|B\.?Sc|M\.?Sc|B\.?Com|M\.?Com|'
@@ -53,16 +55,22 @@ DEGREE_RE   = re.compile(
     re.IGNORECASE
 )
 
-# Section-header keywords — used to split the blob into logical blocks
+# Section-header keywords — used to inject newlines into collapsed PDF text
 SECTION_KEYWORDS = [
-    'contact', 'phone', 'email', 'address', 'linkedin', 'github',
+    'contact', 'phone', 'email', 'address',
+    'linkedin', 'github', 'links', 'link',
     'experience', 'work experience', 'employment',
     'education', 'academic',
     'skills', 'technical skills', 'languages',
     'projects', 'project',
     'certifications', 'certification', 'achievements',
     'internship', 'internships',
-    'interests', 'hobbies', 'objective', 'summary', 'profile', 'links',
+    'interests', 'hobbies', 'objective', 'summary', 'profile',
+    # all-caps variants common in PDFs
+    'LINKS', 'CONTACT', 'SKILLS', 'EDUCATION', 'EXPERIENCE',
+    'PROJECTS', 'CERTIFICATIONS', 'ACHIEVEMENTS', 'INTERNSHIP',
+    'LANGUAGES', 'PROFILE', 'SUMMARY', 'OBJECTIVE',
+    'Github', 'LinkedIn', 'GitHub',
 ]
 
 # ─── PDF helpers ──────────────────────────────────────────────────────────────
@@ -117,9 +125,17 @@ def _clean_lines(text: str):
 
 # ─── Name extraction ─────────────────────────────────────────────────────────
 
-# Pattern: 2-4 words all starting with capital letter
-NAME_PATTERN = re.compile(
+# Pattern: 2-3 words all starting with capital letter (full-line match)
+NAME_PATTERN_FULL = re.compile(
     r'^([A-Z][a-zA-Z\'\-]+(?:\s[A-Z][a-zA-Z\'\-]+){1,3})$'
+)
+# Pattern: name at START of a line even if more text follows
+NAME_PATTERN_START = re.compile(
+    r'^([A-Z][a-zA-Z\'\-]+(?:\s[A-Z][a-zA-Z\'\-]+){1,2})(?=\s*(?:[A-Z]{2,}|\d|@|$))'
+)
+# Pattern: search anywhere — e.g. "Hello, I am Deepesh Mahawar" (less reliable)
+NAME_PATTERN_ANY = re.compile(
+    r'\b([A-Z][a-z]+(?:\s[A-Z][a-z]+){1,2})\b'
 )
 
 SKIP_LINES = {
@@ -129,32 +145,60 @@ SKIP_LINES = {
     'links', 'linkedin', 'github',
 }
 
+SKIP_WORDS = {
+    'contact', 'links', 'github', 'linkedin', 'skills', 'experience',
+    'education', 'projects', 'certifications', 'achievements', 'internship',
+    'languages', 'profile', 'summary', 'objective', 'address', 'phone',
+    'email', 'mobile',
+}
+
+
+def _looks_like_name(text: str) -> bool:
+    """Return True if text looks like a person's name (2-3 Title-Case words)."""
+    words = text.strip().split()
+    if not (2 <= len(words) <= 4):
+        return False
+    if any(c.isdigit() for c in text) or '@' in text:
+        return False
+    if any(w.lower() in SKIP_WORDS for w in words):
+        return False
+    return all(w[0].isupper() for w in words)
+
+
 def _extract_name(lines) -> str:
     """
-    Walk first 15 lines looking for a short Title-Case line
-    that looks like a human name.
+    Walk first 20 lines trying multiple strategies to find a person's name.
+    Strategy 1: Exact full-line Title-Case match (most reliable)
+    Strategy 2: Name at start of a line (works when lines are semi-collapsed)
+    Strategy 3: First Title-Case 2-word token found anywhere in top lines
     """
-    for line in lines[:15]:
-        # Skip if line is too long (likely a sentence) or too short
-        if len(line) > 50 or len(line) < 3:
+    # Strategy 1 – full-line match
+    for line in lines[:20]:
+        if len(line) > 60 or len(line) < 3:
             continue
-        if line.lower() in SKIP_LINES:
+        if line.lower() in SKIP_LINES or '@' in line or re.search(r'\d', line):
             continue
-        # Skip lines containing digits (phone, date)
-        if re.search(r'\d', line):
-            continue
-        # Skip lines containing @ (email)
+        m = NAME_PATTERN_FULL.match(line)
+        if m and _looks_like_name(m.group(1)):
+            return m.group(1).strip()
+
+    # Strategy 2 – name at start of (possibly collapsed) line
+    for line in lines[:20]:
         if '@' in line:
             continue
-        m = NAME_PATTERN.match(line)
-        if m:
+        m = NAME_PATTERN_START.match(line)
+        if m and _looks_like_name(m.group(1)):
             return m.group(1).strip()
-    # Second pass: just grab first sensible token if nothing matched
-    for line in lines[:5]:
-        parts = line.split()
-        if 2 <= len(parts) <= 4 and all(p[0].isupper() for p in parts if p):
-            if not any(c.isdigit() for c in line) and '@' not in line:
-                return line
+
+    # Strategy 3 – scan raw beginning of text for Title-Case 2-word group
+    for line in lines[:10]:
+        if '@' in line or re.search(r'\d{4,}', line):
+            continue
+        for m in NAME_PATTERN_ANY.finditer(line):
+            candidate = m.group(1)
+            if _looks_like_name(candidate):
+                return candidate
+
     return 'Unknown'
 
 

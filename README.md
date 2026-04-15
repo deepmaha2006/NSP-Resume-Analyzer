@@ -24,7 +24,7 @@
     <small align="justify">
       Built with 🤍 by
       <a href="https://github.com/stutiagrawal255-prog">Stuti Agrawal</a> &
-      <a href="https://github.com/deepmaha2006">Deepesh Mahawar</a>
+      <a href="https://github.com/deepmaha2006">Deepesh Kumar Mahawar</a>
      </small>
   </p>
   <small align="justify">🚀 NSP Resume Analyzer — AI-powered Resume Analysis Tool</small>

@@ -159,37 +159,63 @@ def _looks_like_name(text: str) -> bool:
 
 def _extract_name(raw_text: str) -> str:
     """
-    Extract person name by walking word-by-word from the very start
-    of the cleaned resume header.
-    The name is ALWAYS the first thing; we stop at the first job-title
-    or section keyword word (Analyst, Engineer, Security, etc.).
+    Extract the person's name from the resume header using 4 strategies:
+    1. Comma-split: first line before comma (handles 'Name, Job Title' format)
+    2. Word-walk: collect Title-Case words from start, stop at skip-word
+    3. ALL-CAPS: same as (2) but for ALLCAPS names (pdfminer extracts bold as uppercase)
+    4. Regex sweep of first 800 chars
     """
     header = raw_text[:800]
 
-    # Remove noise so contact info doesn't confuse us
-    header = EMAIL_RE.sub(' ', header)          # remove emails
-    header = PHONE_RE.sub(' ', header)          # remove phone numbers
-    header = re.sub(r'https?://\S+', ' ', header)  # remove URLs
-    header = re.sub(r'[,|\u2022\xb7/\\@#]', ' ', header)  # remove punctuation
-    header = re.sub(r'\d+', ' ', header)        # remove all digit sequences
-    header = re.sub(r'\s+', ' ', header).strip()
+    # Clean noise from header
+    header_clean = EMAIL_RE.sub(' ', header)
+    header_clean = PHONE_RE.sub(' ', header_clean)
+    header_clean = re.sub(r'https?://\S+', ' ', header_clean)
+    header_clean = re.sub(r'\d+', ' ', header_clean)        # remove digits
+    header_clean = re.sub(r'\s+', ' ', header_clean).strip()
 
-    # Walk word-by-word; collect only valid name words
-    # Stop as soon as a word is a job title/section/non-name word
+    # ── Strategy 1: Split by comma → left part is likely "FirstName LastName" ──
+    comma_part = header_clean.split(',')[0].strip()
+    # Normalize ALL-CAPS to Title-Case for checking
+    comma_title = comma_part.title()
+    c_words = comma_title.split()
+    if 2 <= len(c_words) <= 4 and not any(w.lower() in SKIP_WORDS for w in c_words):
+        # Accept if all words are alpha-only
+        if all(re.match(r'^[A-Za-z]+$', w) for w in c_words):
+            return comma_title
+
+    # ── Strategy 2: Word-by-word walk — Title-Case (Deepesh Kumar Mahawar) ──
     name_words = []
-    for word in header.split()[:10]:
-        # Must be Title-Case (Uppercase first, remaining lowercase-dominated)
-        if not re.match(r'^[A-Z][a-z]+$', word):
+    for word in header_clean.split()[:12]:
+        if not re.match(r'^[A-Z][a-z]{1,}$', word):   # Title-Case only
             break
-        # Stop at known non-name words (job titles, sections, etc.)
         if word.lower() in SKIP_WORDS:
             break
         name_words.append(word)
-        if len(name_words) == 4:   # max 4-word name
+        if len(name_words) == 4:
             break
-
     if len(name_words) >= 2:
         return ' '.join(name_words)
+
+    # ── Strategy 3: ALL-CAPS words (pdfminer renders bold text as UPPERCASE) ──
+    caps_words = []
+    for word in header_clean.split()[:12]:
+        if not re.match(r'^[A-Z]{2,}$', word):         # ALL-CAPS only
+            break
+        if word.lower() in SKIP_WORDS:
+            break
+        caps_words.append(word.title())                 # convert to Title-Case
+        if len(caps_words) == 4:
+            break
+    if len(caps_words) >= 2:
+        return ' '.join(caps_words)
+
+    # ── Strategy 4: Regex sweep for any Title-Case 2-3 word group ──
+    for m in re.finditer(r'\b([A-Z][a-z]+(?:\s[A-Z][a-z]+){1,2})\b', header_clean):
+        candidate = m.group(1)
+        words = candidate.split()
+        if not any(w.lower() in SKIP_WORDS for w in words):
+            return candidate
 
     return 'Unknown'
 
@@ -213,6 +239,7 @@ class ResumeParser:
             'skills':        self._extract_skills(),
             'degree':        self._extract_degree(),
             'no_of_pages':   count_pages(self.pdf_path),
+            '_raw_preview':  self._raw_text[:800],   # debug: first 800 chars of extracted text
         }
 
     def _extract_email(self) -> str:

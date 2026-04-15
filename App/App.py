@@ -219,7 +219,6 @@ def run():
                     email_val   = resume_data.get('email', '') or 'Could not detect'
                     contact_val = resume_data.get('mobile_number', '') or 'Could not detect'
                     degree_raw  = resume_data.get('degree', [])
-                    # degree is a list — join to readable string
                     if isinstance(degree_raw, list):
                         degree_val = ', '.join(degree_raw) if degree_raw else 'N/A'
                     else:
@@ -231,6 +230,12 @@ def run():
                     st.text('Resume pages: '+ str(resume_data.get('no_of_pages', 1)))
                 except Exception:
                     pass
+
+                # Debug expander — shows raw PDF text for troubleshooting
+                with st.expander("🔍 Debug: Raw Extracted Text (first 600 chars)"):
+                    raw_preview = resume_data.get('_raw_preview', resume_text[:600] if resume_text else 'N/A')
+                    st.code(raw_preview, language=None)
+
 
                 # Experience level
                 cand_level = ''

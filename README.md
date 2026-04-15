@@ -277,4 +277,4 @@ For major changes, please open an issue first to discuss what you would like to 
 
 ![Screenshot](https://github.com/stutiagrawal255-prog/NSP-Resume-Analyzer/blob/master/screenshots/admin/7-pielocation.png?raw=true)
 
-### Built with 🤍 by <a href="https://github.com/deepmaha2006">Deepesh Kumar Mahawar</a>
+### Built with 🤍 by <a href="https://github.com/stutiagrawal255-prog">Stuti Agrawal</a> & <a href="https://github.com/deepmaha2006">Deepesh Kumar Mahawar</a>

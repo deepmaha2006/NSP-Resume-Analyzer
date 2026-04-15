@@ -1,5 +1,5 @@
 # NSP Resume Analyzer - AI-powered Resume Analysis Tool
-# Built by Deepesh Kumar Mahawar
+# Built by Stuti Agrawal & Deepesh Kumar Mahawar
 
 ###### Packages Used ######
 import streamlit as st

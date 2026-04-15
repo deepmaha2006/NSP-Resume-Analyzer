@@ -127,7 +127,6 @@ def _name_from_text(text: str) -> str:
     Handles: 'Deepesh Kumar Mahawar, Cyber Security Analyst'
              'DEEPESH KUMAR MAHAWAR'
              'Deepesh Kumar Mahawar'
-             'Stuti Agrawal'
     """
     t = EMAIL_RE.sub('', text)
     t = PHONE_RE.sub('', t)

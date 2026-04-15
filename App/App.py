@@ -1,5 +1,5 @@
-# AI Resume Analyzer - Modified for Python 3.14 compatibility
-# Uses SQLite (built-in) instead of MySQL, and lite resume parser instead of pyresparser
+# NSP Resume Analyzer - AI-powered Resume Analysis Tool
+# Built by Stuti Agrawal & Deepesh Mahawar
 
 ###### Packages Used ######
 import streamlit as st
